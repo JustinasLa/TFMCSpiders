@@ -2,6 +2,7 @@ package net.tfminecraft.spiders.spider.components;
 
 import net.tfminecraft.spiders.spider.components.body.Leg;
 import net.tfminecraft.spiders.spider.configuration.LegPlan;
+import net.tfminecraft.spiders.spider.configuration.OrientationMode;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.util.Vector;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static net.tfminecraft.spiders.spider.components.SimulationHarness.spawn;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -134,6 +136,37 @@ class LegScanCacheKeyTest {
         }));
         assertEquals(before[0], leg[0].getLookAheadPosition(), "Setup: the look-ahead moved");
         assertNotEquals(before[1], leg[0].getRestPosition());
+    }
+
+    /** Runs {@code change} on a hanging spider and checks its first leg rescans and that {@code read} of that leg changed. */
+    private static void rescansWhenChanged(Consumer<Run> setup, Consumer<Run> change, Function<Leg, Vector> read) {
+        Leg[] leg = {null};
+        Vector[] before = {null};
+        assertTrue(hangingRescansAfter(setup, run -> {
+            leg[0] = run.body().getLegs().get(0);
+            before[0] = read.apply(leg[0]).clone();
+            change.accept(run);
+        }));
+        assertNotEquals(before[0], read.apply(leg[0]), "Setup: nothing changed");
+    }
+
+    @Test
+    @DisplayName("starting to walk moves the look-ahead and rescans")
+    void startingToWalkRescans() {
+        rescansWhenChanged(run -> { }, run -> run.body().setWalking(true), Leg::getLookAheadPosition);
+    }
+
+    @Test
+    @DisplayName("a longer look-ahead while walking rescans")
+    void aLongerLookAheadRescans() {
+        rescansWhenChanged(run -> run.body().setWalking(true), run -> run.gait().setLegLookAheadFraction(1.0), Leg::getLookAheadPosition);
+    }
+
+    @Test
+    @DisplayName("switching the scan orientation of a tilted body turns the surface up and rescans")
+    void switchingTheScanOrientationRescans() {
+        rescansWhenChanged(run -> run.body().getOrientation().rotationX(.3f),
+            run -> run.gait().setScanOrientation(OrientationMode.SpiderOrientation), Leg::getSurfaceUp);
     }
 
     @Test
