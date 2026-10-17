@@ -586,7 +586,14 @@ public class Leg {
         }
     }
 
-    /** The last ground scan and everything it read; the forward direction it reads follows from the body's orientation. */
+    /**
+     * The last ground scan and everything it read; the forward direction it reads follows from the body's orientation.
+     * <p>
+     * The scan line is the look-ahead plus {@code 1.6 h} surface ups to {@code -2.5 h} of them (body height {@code h}),
+     * so its two ends fix the look-ahead and the surface up as well, whatever moved them (walking, the velocity's
+     * direction, the look-ahead fraction, the trigger radius, the scan orientation). The comfort zone runs from
+     * its start along that same axis. So the look-ahead, the surface up and the comfort zone's end aren't compared on their own.
+     */
     private final class ScanCache {
         private boolean valid = false;
         private int tick;
@@ -596,10 +603,7 @@ public class Leg {
         private final Quaternionf spiderOrientation = new Quaternionf();
         private final Vector scanStart = new Vector();
         private final Vector scanEnd = new Vector();
-        private final Vector lookAhead = new Vector();
-        private final Vector up = new Vector();
         private final Vector comfortStart = new Vector();
-        private final Vector comfortEnd = new Vector();
         private double comfortRadius;
         private boolean grip;
         private boolean alternativeGround;
@@ -611,8 +615,7 @@ public class Leg {
             return grip == gait.getGrip() && alternativeGround == gait.getLegScanAlternativeGround() && heightBias == gait.getLegScanHeightBias() &&
                 spiderPosition.equals(spider.getPosition()) && spiderOrientation.equals(spider.getOrientation(), ORIENTATION_EPSILON) &&
                 scanStart.equals(scanLine.getPoint1()) && scanEnd.equals(scanLine.getPoint2()) &&
-                lookAhead.equals(lookAheadPosition) && up.equals(surfaceUp) &&
-                comfortStart.equals(comfortZone.getPoint1()) && comfortEnd.equals(comfortZone.getPoint2()) && comfortRadius == comfortZone.getRadius();
+                comfortStart.equals(comfortZone.getPoint1()) && comfortRadius == comfortZone.getRadius();
         }
 
         void remember(LegTarget result) {
@@ -624,10 +627,7 @@ public class Leg {
             spiderOrientation.set(spider.getOrientation());
             scanStart.copy(scanLine.getPoint1());
             scanEnd.copy(scanLine.getPoint2());
-            lookAhead.copy(lookAheadPosition);
-            up.copy(surfaceUp);
             comfortStart.copy(comfortZone.getPoint1());
-            comfortEnd.copy(comfortZone.getPoint2());
             comfortRadius = comfortZone.getRadius();
             grip = gait.getGrip();
             alternativeGround = gait.getLegScanAlternativeGround();
