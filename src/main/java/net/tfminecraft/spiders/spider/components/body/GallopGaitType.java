@@ -40,11 +40,13 @@ public final class GallopGaitType {
             // check cooldown
             Leg front = getOrNull(spider.getLegs(), LegLookUp.diagonalFront(index));
             Leg back = getOrNull(spider.getLegs(), LegLookUp.diagonalBack(index));
-            if (front != null && leg.getTarget().isGrounded() && (leg.getTimeSinceBeginMove() < leg.getOptions().getGait().getCrossPairCooldown())) return false;
+            // the target is grounded here (an ungrounded one returned above)
+            if (front != null && (leg.getTimeSinceBeginMove() < leg.getOptions().getGait().getCrossPairCooldown())) return false;
 
             return leg.isOutsideTriggerZone() || !leg.getTouchingGround();
         } else {
-            boolean hasCooldown = pair.getTarget().isGrounded() && (pair.getTimeSinceBeginMove() < leg.getOptions().getGait().getSamePairCooldown());
+            // a secondary leg's pair is enabled and its target grounded (otherwise this leg would be primary)
+            boolean hasCooldown = pair.getTimeSinceBeginMove() < leg.getOptions().getGait().getSamePairCooldown();
             return pair.isMoving() && !hasCooldown;
         }
     }

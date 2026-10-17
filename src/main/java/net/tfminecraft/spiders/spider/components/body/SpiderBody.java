@@ -258,38 +258,24 @@ public class SpiderBody implements ECSComponent {
         return groundTarget != null ? groundTarget.getPosition() : leg.getRestPosition();
     }
 
-    private static Leg getOrNull(List<Leg> legs, int index) {
-        return index >= 0 && index < legs.size() ? legs.get(index) : null;
-    }
-
     private void updatePreferredAngles(Gait gait) {
         Vector up = Maths.rotate(Maths.upVector(), gait.getScanOrientation().get(this));
 
-        Leg frontLeftLeg = getOrNull(legs, 0);
-        if (frontLeftLeg == null) return;
-        Vector frontLeft = getPos(frontLeftLeg);
-        Leg frontRightLeg = getOrNull(legs, 1);
-        if (frontRightLeg == null) return;
-        Vector frontRight = getPos(frontRightLeg);
-        Leg backLeftLeg = getOrNull(legs, legs.size() - 2);
-        if (backLeftLeg == null) return;
-        Vector backLeft = getPos(backLeftLeg);
-        Leg backRightLeg = getOrNull(legs, legs.size() - 1);
-        if (backRightLeg == null) return;
-        Vector backRight = getPos(backRightLeg);
+        // the front pair and the last two legs set the pitch, so it takes at least two legs
+        if (legs.size() < 2) return;
+        Vector frontLeft = getPos(legs.get(0));
+        Vector frontRight = getPos(legs.get(1));
+        Vector backLeft = getPos(legs.get(legs.size() - 2));
+        Vector backRight = getPos(legs.get(legs.size() - 1));
 
         Vector forwardLeft = frontLeft.clone().subtract(backLeft);
         Vector forwardRight = frontRight.clone().subtract(backRight);
         Vector forward = Geometry.average(List.of(forwardLeft, forwardRight));
 
+        // left/right pairs set the roll; an unpaired last leg (odd leg count) is left out
         Vector sideways = new Vector(0.0, 0.0, 0.0);
-        for (int i = 0; i < legs.size(); i += 2) {
-            Leg left = getOrNull(legs, i);
-            if (left == null) continue;
-            Leg right = getOrNull(legs, i + 1);
-            if (right == null) continue;
-
-            sideways.add(getPos(right).clone().subtract(getPos(left)));
+        for (int i = 0; i + 1 < legs.size(); i += 2) {
+            sideways.add(getPos(legs.get(i + 1)).clone().subtract(getPos(legs.get(i))));
         }
 
         Vector bodyForward = forwardDirection();
@@ -349,10 +335,8 @@ public class SpiderBody implements ECSComponent {
         this.contact = contact;
 
         // toppling
-        Vector topplingPivot = contact != null ? contact.getCenterOfPressure() : null;
-        Vector topplingCentre = contact != null ? contact.getCentreOfMass() : null;
-        if (contact != null && !contact.isStable() && topplingPivot != null && topplingCentre != null) {
-            Vector lever = topplingCentre.clone().subtract(topplingPivot);
+        if (contact != null && !contact.isStable()) {
+            Vector lever = contact.getCentreOfMass().clone().subtract(contact.getCenterOfPressure());
             Vector gravityDir = new Vector(0.0, -1.0, 0.0);
             Vector horizontalLever = lever.clone().subtract(gravityDir.clone().multiply(lever.dot(gravityDir)));
             double overhang = horizontalLever.length();
@@ -566,12 +550,8 @@ public class SpiderBody implements ECSComponent {
         Vector right = up.clone().crossProduct(forward);
 
         double alongUpSum = 0.0;
-        int alongUpCount = 0;
-        for (Vector it : legsPolygon) {
-            alongUpSum += it.dot(up);
-            alongUpCount++;
-        }
-        double polygonAlongUp = alongUpCount == 0 ? Double.NaN : alongUpSum / alongUpCount;
+        for (Vector it : legsPolygon) alongUpSum += it.dot(up);
+        double polygonAlongUp = alongUpSum / legsPolygon.size();
 
         List<Vector2d> polygon2D = new ArrayList<>();
         for (Vector it : legsPolygon) polygon2D.add(project(it, right, forward));
